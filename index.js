@@ -4,11 +4,28 @@ const app = express()
 app.use(express.text({type: '*/*'}))
 const port = 80
 
+const 
+	OG_GAME_PACKET = 1, 	  // 1 - Пакеты, передаваемые от сервера в игру с заголовком и информацией о сделанных ходах.
+	OG_CONTROL_PACKET = 2,	  // 2 - Ответы со стороны игрока о получении пакета и результатах обсчета хода.
+	OG_SEEDS_PACKET = 3,	  // 3 - Ходы игроков.
+	OG_COMPLETED_GAME_PACKET = 4, // 4 - Информация по состоявшейся игре.
+	OG_SYS_PACKET = 5,		  // 5 - Административный тип пакетов для проверки корректности игры.
+	OG_REFRESH_PACKET = 6,	  // 6 - Обновление информации о ходе для экспресс-игры
+	OG_REFRESH_ANSWER_PACKET = 7, // 7 - Ответ на 6й пакет
+	OG_ARCADE_GAME_PACKET = 8	  // 8 - Запуск тестовой версии с сервера
+
+function parseRequest(request) {
+  let result = request.split(';');
+  const lastIndex = result.findIndex(item => item.startsWith('BITRIX'));
+  if (lastIndex) {
+    result = result.slice(0, lastIndex);
+  }
+  return result;
+}
+
 app.get('*', (req, res) => {
   console.log('get');
-  console.log(req.path);
   console.log(req.query);
-  console.log(req.headers);
   if (req.path === '/game-on-line/default.asp') {
     res.send('KDLAB;104;0;0;0;0;0;password;0;0;0;A;10;10;200;10;2;1;Y;;;;;;;0;player;1;1;1;1;N;1;player2;1;1;1;1;N;BITRIX');
   } else {
@@ -18,19 +35,16 @@ app.get('*', (req, res) => {
 
 app.post('*', (req, res) => {
     console.log('post');
-    console.log(req.path);
-    console.log(req.query);
-    console.log(req.headers);
-    console.log(req.params);
-    console.log(req.body);
     if (req.path === '/game-on-line/default.asp') {
     //   res.send('OK:KDLAB;104;0;0;0;0;0;password;0;0;0;A;0;0;0;0;1;0;Y;;;;;;;0;player;1;1;1;1;N;BITRIX');
     //   res.send(req.body);
-        const data = req.body.split(';');
-        if (data[3] === 6) {
-            res.send('KDLAB;104;7;0;0;0;0;password;0;0;0;A;10;10;200;10;2;1;Y;;;;;;;0;player;1;1;1;1;N;1;player2;1;1;1;1;N;453#466#51#-1#421#310#51#-1#281#435#51#-1#323#589#51#-1#568#436#51#-1#599#366#50#-1#317#313#61#-1#384#500#51#-1#549#357#50#-1#350#392#51#-1;453#466#51#-1#421#310#51#-1#281#435#51#-1#323#589#51#-1#568#436#51#-1#599#366#50#-1#317#313#61#-1#384#500#51#-1#549#357#50#-1#350#392#51#-1;BITRIX');
+        const data = parseRequest(req.body);
+        console.log(data);
+        if (data[2] === '6') {
+          console.log('go');
+            res.send('KDLAB;104;1;0;0;0;0;password;0;0;0;A;11;11;200;11;2;1;Y;;;;;;;0;player;1;1;1;1;N;1;player2;1;1;1;1;N;11;2;0;Y;0;0;0;0;0;0;0;2;283#402#51#-1#504#375#50#-1;1;Y;0;0;0;0;0;0;0;2;283#402#51#-1#504#375#50#-1;BITRIX');
         } else {
-            res.send('OK:KDLAB');
+          res.send('OK:KDLAB');
         }
     // res.send('NEXT_MOVE');
     } else {
