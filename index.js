@@ -34,12 +34,14 @@ const games = {
         name: 'player',
         turns: [],
         robot: 'N',
+        sent: false,
       },
       1: {
         id: '1',
         name: 'player2',
         turns: [],
         robot: 'N',
+        sent: false,
       }
     }
   }
@@ -49,8 +51,8 @@ function getPlayersString(game) {
   return Object.values(games[game].players).map(player => `${player.id};${player.name};1;1;1;1;${player.robot}`).join(';');
 }
 
-function getGameString(game) {
-  return `${games[game].id};0;0;0;password;`+
+function getGameString(game, player) {
+  return `${games[game].id};0;0;${player};password;`+
   `${games[game].world_id};${games[game].route_id};${games[game].game_rnd};`+
   `${games[game].type};${games[game].laps};${games[game].seeds};`+
   `${games[game].duration};${games[game].move_cnt};${Object.values(games[game].players).length};`+
@@ -76,7 +78,7 @@ app.get('*', (req, res) => {
   if (req.path === '/game-on-line/default.asp') {
     games[0].move_cnt=0;
     games[0].steps_cnt=0;
-    res.send(`KDLAB;104;0;${getGameString(0)};;;;;;;${getPlayersString(0)};BITRIX`);
+    res.send(`KDLAB;104;0;${getGameString(0, req.query.USERID)};;;;;;;${getPlayersString(0)};BITRIX`);
   } else {
     res.send('Hello World!')
   }
@@ -91,12 +93,14 @@ app.post('*', (req, res) => {
         console.log(data);
         if (parseInt(data[2]) === OG_REFRESH_PACKET) {
           console.log('go');
-            res.send(`KDLAB;104;${OG_GAME_PACKET};${getGameString(0)};;;;;;;${getPlayersString(0)};${games[0].steps_cnt};2;${getSeedsString(0)};BITRIX`);
+            res.send(`KDLAB;104;${OG_GAME_PACKET};${getGameString(0, data[6])};;;;;;;${getPlayersString(0)};`+
+            `${games[0].steps_cnt};${Object.values(games[0].players).length};${getSeedsString(0)};BITRIX`);
         } else if (parseInt(data[2]) === OG_SEEDS_PACKET) {
           games[0].move_cnt+=1;
           games[0].steps_cnt+=1;
-          games[0].players[0].turns.push(data.slice(25).join(';'));
-          games[0].players[1].turns.push([1, ...data.slice(26)].join(';'));
+          // games[0].players[data[25]].turns.push(data.slice(25).join(';'));
+          games[0].players[data[25]].turns = [data.slice(25).join(';')];
+          // games[0].players[1].turns.push([1, ...data.slice(26)].join(';'));
           console.log(getSeedsString(0));
           res.send('OK:KDLAB');
         } else if (parseInt(data[2]) === OG_CONTROL_PACKET) {
