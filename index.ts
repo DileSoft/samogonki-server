@@ -39,7 +39,6 @@ interface GameData {
   ID: number,
   LID: number,
   GAME_OWNER_UID: number,
-  OWNER_UID: number,
   PASSWORD: string,
   KD_WORLD_ID: number,
   KD_ROUTE_ID: number,
@@ -54,13 +53,16 @@ interface GameData {
   EXPRESS: string,
   PLAYERS: GamePacketPlayer[],
   STEPS: GamePacketTurnInfo[],
+  STEPS_RECEIVED?: number[],
+  STEPS_SENT?: number[],
 }
 
 interface GamePacketData extends GameData {
   Version: number,
   TType: PacketType,
+  OWNER_UID: number,
   URL_POST: string,
-  URL_POST_PORT: string,
+  URL_POST_PORT: number,
   URL_POST_PATH: string,
   URL_RETURN: string,
 }
@@ -114,7 +116,7 @@ class GamePacket {
     STEPS_CNT: 0,
     EXPRESS: 'Y',
     URL_POST: '',
-    URL_POST_PORT: '',
+    URL_POST_PORT: 0,
     URL_POST_PATH: '',
     URL_RETURN: '',
     PLAYERS: [],
@@ -218,16 +220,14 @@ class GamePacket {
   }
 }
 
-const packet = new GamePacket;
 const games:GameData[] = [
   {
     ID: 0,
     LID: 0,
     GAME_OWNER_UID: 0,
-    OWNER_UID: 0,
     KD_WORLD_ID: 0,
     KD_ROUTE_ID: 0,
-    PASSWORD: '',
+    PASSWORD: 'password',
     GAME_RND: 0,
     GTYPE: 'A',
     LAPS: 5,
@@ -238,6 +238,8 @@ const games:GameData[] = [
     STEPS_CNT: 0,
     EXPRESS: 'Y',
     STEPS: [],
+    STEPS_RECEIVED: [],
+    STEPS_SENT: [],
     PLAYERS: [
       {
         UID: 0,
@@ -265,22 +267,6 @@ const games:GameData[] = [
   }
 ];
 
-function getPlayersString(game) {
-  return games[game].PLAYERS.map((player) => `${player.UID};${player.NIC};1;1;1;1;${player.ROBOT}`).join(';');
-}
-
-function getGameString(game, player) {
-  return `${games[game].ID};0;0;${player};password;`+
-  `${games[game].KD_WORLD_ID};${games[game].KD_ROUTE_ID};${games[game].GAME_RND};`+
-  `${games[game].GTYPE};${games[game].LAPS};${games[game].SEEDS};`+
-  `${games[game].DURATION};${games[game].MOVE_CNT};${games[game].PLAYERS.length};`+
-  `${games[game].STEPS_CNT};${games[game].EXPRESS}`;
-}
-
-function getSeedsString(game) {
-  return games[game].PLAYERS.map((player) => player.TURNS[player.TURNS.length-1]).join(';');
-}
-
 function parseRequest(request) {
   let result = request.split(';');
   const lastIndex = result.findIndex(item => item.startsWith('BITRIX'));
@@ -294,9 +280,14 @@ app.get('*', (req, res) => {
   console.log('get');
   console.log(req.query);
   if (req.path === '/game-on-line/default.asp') {
-    games[0].MOVE_CNT=0;
-    games[0].STEPS_CNT=0;
-    res.send(`KDLAB;104;0;${getGameString(0, req.query.USERID)};;;;;;;${getPlayersString(0)};BITRIX`);
+    const outPacket = new GamePacket;
+    outPacket.data = {...outPacket.data, ...games[0]};
+    outPacket.data.TType = PacketType.OG_CONTROL_PACKET;
+    outPacket.data.OWNER_UID = req.query.USERID;
+    console.log('out:');
+    console.log(JSON.stringify(outPacket.data, null, 2))
+    // console.log(outPacket.writePacket());
+    res.send(outPacket.writePacket());
   } else {
     res.send('Hello World!')
   }
@@ -305,30 +296,40 @@ app.get('*', (req, res) => {
 app.post('*', (req, res) => {
     console.log('post');
     if (req.path === '/game-on-line/default.asp') {
-    //   res.send('OK:KDLAB;104;0;0;0;0;0;password;0;0;0;A;0;0;0;0;1;0;Y;;;;;;;0;player;1;1;1;1;N;BITRIX');
-    //   res.send(req.body);
-        const data = parseRequest(req.body);
-        console.log(data.join(';'));
-        const packet = new GamePacket;
-        packet.readPacket(req.body);
-        console.log(JSON.stringify(packet, null, 2))
-        console.log(packet.writePacket());
-        if (parseInt(data[2]) === PacketType.OG_REFRESH_PACKET) {
-          console.log('go');
-            res.send(`KDLAB;104;${PacketType.OG_GAME_PACKET};${getGameString(0, data[6])};;;;;;;${getPlayersString(0)};`+
-            `${games[0].STEPS_CNT};${games[0].PLAYERS.length};${getSeedsString(0)};BITRIX`);
-        } else if (parseInt(data[2]) === PacketType.OG_SEEDS_PACKET) {
-          games[0].MOVE_CNT+=1;
-          games[0].STEPS_CNT+=1;
-          // games[0].players[data[25]].turns.push(data.slice(25).join(';'));
-          games[0].PLAYERS[data[25]].TURNS = [data.slice(25).join(';')];
-          // games[0].players[1].turns.push([1, ...data.slice(26)].join(';'));
-          console.log(getSeedsString(0));
+        const inPacket = new GamePacket;
+        inPacket.readPacket(req.body);
+        console.log('in:');
+        console.log(JSON.stringify(inPacket, null, 2))
+        const outPacket = new GamePacket;
+        if (inPacket.data.TType === PacketType.OG_REFRESH_PACKET) {
+          outPacket.data = {...outPacket.data, ...games[inPacket.data.ID]};
+          outPacket.data.OWNER_UID = inPacket.data.OWNER_UID;
+          if (!games[inPacket.data.ID].STEPS_RECEIVED.includes(inPacket.data.OWNER_UID)) {
+            games[inPacket.data.ID].STEPS_RECEIVED.push(inPacket.data.OWNER_UID);
+          }
+          if (games[inPacket.data.ID].STEPS_RECEIVED.length === games[inPacket.data.ID].PLAYERS.length) {
+            outPacket.data.TType = PacketType.OG_GAME_PACKET;
+            if (!games[inPacket.data.ID].STEPS_SENT.includes(inPacket.data.OWNER_UID)) {
+              games[inPacket.data.ID].STEPS_SENT.push(inPacket.data.OWNER_UID);
+            }
+            if (games[inPacket.data.ID].STEPS_SENT.length === games[inPacket.data.ID].PLAYERS.length) {
+              games[inPacket.data.ID].STEPS_RECEIVED = [];
+              games[inPacket.data.ID].STEPS_SENT = [];
+              games[inPacket.data.ID].MOVE_CNT+=1;
+            }
+          } else {
+            outPacket.data.TType = PacketType.OG_REFRESH_ANSWER_PACKET;
+          }
+          console.log('out:');
+          console.log(JSON.stringify(outPacket.data, null, 2))
+          res.send(outPacket.writePacket());
+        } else if (inPacket.data.TType === PacketType.OG_SEEDS_PACKET) {
+          games[inPacket.data.ID].STEPS_CNT+=1;
+          games[inPacket.data.ID].STEPS = [...games[inPacket.data.ID].STEPS, ...inPacket.data.STEPS];
           res.send('OK:KDLAB');
-        } else if (parseInt(data[2]) === PacketType.OG_CONTROL_PACKET) {
+        } else if (inPacket.data.TType === PacketType.OG_CONTROL_PACKET) {
           res.send('OK:KDLAB');
         }
-    // res.send('NEXT_MOVE');
     } else {
       res.send('Hello World!')
     }
