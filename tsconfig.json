@@ -1,0 +1,6 @@
+{
+    "noImplicitAny": false,
+    "compilerOptions": {
+        "lib": ["ES2017.Object"]
+    }
+}
