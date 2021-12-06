@@ -304,9 +304,6 @@ app.post('*', (req, res) => {
         if (inPacket.data.TType === PacketType.OG_REFRESH_PACKET) {
           outPacket.data = {...outPacket.data, ...games[inPacket.data.ID]};
           outPacket.data.OWNER_UID = inPacket.data.OWNER_UID;
-          if (!games[inPacket.data.ID].STEPS_RECEIVED.includes(inPacket.data.OWNER_UID)) {
-            games[inPacket.data.ID].STEPS_RECEIVED.push(inPacket.data.OWNER_UID);
-          }
           if (games[inPacket.data.ID].STEPS_RECEIVED.length === games[inPacket.data.ID].PLAYERS.length) {
             outPacket.data.TType = PacketType.OG_GAME_PACKET;
             if (!games[inPacket.data.ID].STEPS_SENT.includes(inPacket.data.OWNER_UID)) {
@@ -315,7 +312,6 @@ app.post('*', (req, res) => {
             if (games[inPacket.data.ID].STEPS_SENT.length === games[inPacket.data.ID].PLAYERS.length) {
               games[inPacket.data.ID].STEPS_RECEIVED = [];
               games[inPacket.data.ID].STEPS_SENT = [];
-              games[inPacket.data.ID].MOVE_CNT+=1;
             }
           } else {
             outPacket.data.TType = PacketType.OG_REFRESH_ANSWER_PACKET;
@@ -324,8 +320,31 @@ app.post('*', (req, res) => {
           console.log(JSON.stringify(outPacket.data, null, 2))
           res.send(outPacket.writePacket());
         } else if (inPacket.data.TType === PacketType.OG_SEEDS_PACKET) {
-          games[inPacket.data.ID].STEPS_CNT+=1;
-          games[inPacket.data.ID].STEPS = [...games[inPacket.data.ID].STEPS, ...inPacket.data.STEPS];
+          if (!games[inPacket.data.ID].STEPS_RECEIVED.includes(inPacket.data.OWNER_UID)) {
+            games[inPacket.data.ID].STEPS_RECEIVED.push(inPacket.data.OWNER_UID);
+
+            if (!games[inPacket.data.ID].STEPS[games[inPacket.data.ID].MOVE_CNT]) {
+              games[inPacket.data.ID].STEPS.push({
+                STEP_ID: inPacket.data.STEPS[0].STEP_ID,
+                USERS_CNT: 0,
+                PLAYER_TURNS: []
+              })
+            }
+            games[inPacket.data.ID].STEPS[games[inPacket.data.ID].MOVE_CNT].USERS_CNT++;
+            games[inPacket.data.ID].STEPS[games[inPacket.data.ID].MOVE_CNT].PLAYER_TURNS.push(
+              inPacket.data.STEPS[0].PLAYER_TURNS[0]
+            );
+  
+  
+            if (games[inPacket.data.ID].STEPS_RECEIVED.length == games[inPacket.data.ID].PLAYERS.length) {
+              games[inPacket.data.ID].STEPS_CNT++;
+              games[inPacket.data.ID].MOVE_CNT++;
+            }
+          } else {
+            const existingPlayerTurnIndex = games[inPacket.data.ID].STEPS[games[inPacket.data.ID].MOVE_CNT].PLAYER_TURNS
+            .findIndex(player_turn => player_turn.UID === inPacket.data.OWNER_UID);
+            games[inPacket.data.ID].STEPS[games[inPacket.data.ID].MOVE_CNT].PLAYER_TURNS[existingPlayerTurnIndex] = inPacket.data.STEPS[0].PLAYER_TURNS[0];
+          }
           res.send('OK:KDLAB');
         } else if (inPacket.data.TType === PacketType.OG_CONTROL_PACKET) {
           res.send('OK:KDLAB');
