@@ -1,3 +1,7 @@
+
+export type YesNo = 'Y' | 'N';
+export type GameType = 'W' | 'A';
+
 export interface GamePacketPlayer {
     UID: number,
     NIC: string,
@@ -5,7 +9,7 @@ export interface GamePacketPlayer {
     FRONT_CAR_COMP_ID: number,
     FWHEEL_CAR_COMP_ID: number,
     BWHEEL_CAR_COMP_ID: number,
-    ROBOT: string,
+    ROBOT: YesNo,
     TURNS?: any[],
     sent?: boolean,
   }
@@ -18,7 +22,7 @@ export interface GamePacketPlayer {
   
   export interface GamePacketPlayerTurnInfo {
     UID: number,
-    IS_FINISHED: string,
+    IS_FINISHED: YesNo,
     RANK: number,
     MOVE_TIME: number,
     MOVE_STEPS: number,
@@ -38,14 +42,14 @@ export interface GamePacketPlayer {
     KD_WORLD_ID: number,
     KD_ROUTE_ID: number,
     GAME_RND: number,
-    GTYPE: string,
+    GTYPE: GameType,
     LAPS: number,
     SEEDS: number,
     DURATION: number,
     MOVE_CNT: number,
     PLAYERS_CNT: number,
     STEPS_CNT: number,
-    EXPRESS: string,
+    EXPRESS: YesNo,
     PLAYERS: GamePacketPlayer[],
     STEPS: GamePacketTurnInfo[],
     STEPS_RECEIVED?: number[],

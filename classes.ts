@@ -1,4 +1,4 @@
-import {PacketType, GamePacketData, GamePacketTurnInfo, GamePacketPlayerTurnInfo} from './types';
+import {PacketType, GamePacketData, GamePacketTurnInfo, GamePacketPlayerTurnInfo, YesNo, GameType} from './types';
 
 export function parseRequest(request) {
     let result = request.split(';');
@@ -93,14 +93,14 @@ export function parseRequest(request) {
         KD_WORLD_ID: packetArray.getInt(),
         KD_ROUTE_ID: packetArray.getInt(),
         GAME_RND: packetArray.getInt(),
-        GTYPE: packetArray.get(),
+        GTYPE: packetArray.get() as GameType,
         LAPS: packetArray.getInt(),
         SEEDS: packetArray.getInt(),
         DURATION: packetArray.getInt(),
         MOVE_CNT: packetArray.getInt(),
         PLAYERS_CNT: packetArray.getInt(),
         STEPS_CNT: packetArray.getInt(),
-        EXPRESS: packetArray.get(),
+        EXPRESS: packetArray.get() as YesNo,
       };
   
       packetArray.get();
@@ -118,7 +118,7 @@ export function parseRequest(request) {
             FRONT_CAR_COMP_ID: packetArray.getInt(),
             FWHEEL_CAR_COMP_ID: packetArray.getInt(),
             BWHEEL_CAR_COMP_ID: packetArray.getInt(),
-            ROBOT: packetArray.get(),
+            ROBOT: packetArray.get() as YesNo,
           })
         }
       }
@@ -132,7 +132,7 @@ export function parseRequest(request) {
         for(let i2 = 0; i2 < step.USERS_CNT; i2++) {
           const playerTurnInfo:GamePacketPlayerTurnInfo = {
             UID: packetArray.getInt(),
-            IS_FINISHED: packetArray.get(),
+            IS_FINISHED: packetArray.get() as YesNo,
             RANK: packetArray.getInt(),
             MOVE_TIME: packetArray.getInt(),
             MOVE_STEPS: packetArray.getInt(),
