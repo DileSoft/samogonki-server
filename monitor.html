@@ -1,0 +1,12 @@
+<html>
+<body>
+    <pre id="data"></pre>
+    <script>
+        setInterval(async () => {
+            const result = await fetch('/monitor/data');
+            const data = await result.json();
+            document.getElementById('data').innerHTML = JSON.stringify(data, null, 2);
+        }, 1000);
+    </script>
+</body>
+<html>

@@ -1,56 +1,25 @@
 import * as express from 'express';
 import {GameData, PacketType} from './types';
 import {GamePacket} from './classes';
+import { createGame } from './games';
+import * as fs from 'fs';
 const app = express()
 app.use(express.text({type: '*/*'}))
 const port = 80
 
 const games:GameData[] = [
-  {
-    ID: 0,
-    LID: 0,
-    GAME_OWNER_UID: 0,
-    KD_WORLD_ID: 0,
-    KD_ROUTE_ID: 0,
-    PASSWORD: 'password',
-    GAME_RND: 0,
-    GTYPE: 'A',
-    LAPS: 5,
-    SEEDS: 200,
-    DURATION: 10,
-    MOVE_CNT: 0,
-    PLAYERS_CNT: 2,
-    STEPS_CNT: 0,
-    EXPRESS: 'Y',
-    STEPS: [],
-    STEPS_RECEIVED: [],
-    STEPS_SENT: [],
-    PLAYERS: [
-      {
-        UID: 0,
-        NIC: 'player',
-        PERS_CAR_COMP_ID: 1,
-        FRONT_CAR_COMP_ID: 1,
-        FWHEEL_CAR_COMP_ID: 1,
-        BWHEEL_CAR_COMP_ID: 1,
-        ROBOT: 'N',
-        TURNS: [],
-        sent: false,
-      },
-      {
-        UID: 1,
-        NIC: 'player2',
-        PERS_CAR_COMP_ID: 1,
-        FRONT_CAR_COMP_ID: 1,
-        FWHEEL_CAR_COMP_ID: 1,
-        BWHEEL_CAR_COMP_ID: 1,
-        ROBOT: 'N',
-        TURNS: [],
-        sent: false,
-      }
-    ]
-  }
+  createGame()
 ];
+
+const monitor = fs.readFileSync(__dirname + '/monitor.html').toString();
+
+app.get('/monitor', (req, res) => {
+  res.send(monitor);
+});
+
+app.get('/monitor/data', (req, res) => {
+  res.send(games);
+});
 
 app.get('*', (req, res) => {
   console.log('get');
@@ -140,6 +109,20 @@ app.post('*', (req, res) => {
 
           res.send('OK:KDLAB');
         } else if (inPacket.data.TType === PacketType.OG_CONTROL_PACKET) {
+          const currentGame = games[inPacket.data.ID];
+          const currentStep = inPacket.data.STEPS.find(step => step.STEP_ID == currentGame.MOVE_CNT);
+          const currentPlayerTurn = currentStep ? currentStep.PLAYER_TURNS.find(turn => turn.UID === inPacket.data.OWNER_UID) : null;
+          
+          if (currentGame.MOVE_CNT) {
+            const existingPlayerTurnIndex = currentGame.STEPS[inPacket.data.MOVE_CNT - 1].PLAYER_TURNS
+            .findIndex(player_turn => player_turn.UID === inPacket.data.OWNER_UID);
+
+            currentPlayerTurn.SEEDS = currentGame.STEPS[inPacket.data.MOVE_CNT - 1].PLAYER_TURNS[existingPlayerTurnIndex].SEEDS;
+            currentPlayerTurn.USER_SEEDS_CNT = currentGame.STEPS[inPacket.data.MOVE_CNT - 1].PLAYER_TURNS[existingPlayerTurnIndex].USER_SEEDS_CNT;
+            currentPlayerTurn.RANK++;
+
+            currentGame.STEPS[inPacket.data.MOVE_CNT - 1].PLAYER_TURNS[existingPlayerTurnIndex] = currentPlayerTurn;
+          }
           res.send('OK:KDLAB');
         }
     } else {
